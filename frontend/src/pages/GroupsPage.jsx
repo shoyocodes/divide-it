@@ -32,7 +32,7 @@ export default function GroupsPage() {
     useEffect(() => {
         async function fetchGroups() {
             try {
-                const res = await axios.get('http://127.0.0.1:8000/api/groups/');
+                const res = await axios.get('http://localhost:8000/api/groups/');
                 setGroups(res.data);
             } catch (error) {
                 console.error("Failed to fetch groups");
@@ -45,7 +45,7 @@ export default function GroupsPage() {
 
     const fetchExpenses = async (groupId) => {
         try {
-            const res = await axios.get(`http://127.0.0.1:8000/api/expenses/?group_id=${groupId}`);
+            const res = await axios.get(`http://localhost:8000/api/expenses/?group_id=${groupId}`);
             setActiveGroupExpenses(res.data);
         } catch (error) {
             console.error("Failed to fetch expenses");
@@ -79,7 +79,7 @@ export default function GroupsPage() {
                 participants: selectedMembers
             };
             console.log("Adding expense:", payload);
-            await axios.post('http://127.0.0.1:8000/api/expenses/', payload);
+            await axios.post('http://localhost:8000/api/expenses/', payload);
             await fetchExpenses(activeGroup.id); // Refresh list
             setNewExpense({ description: '', amount: '' });
             alert("Expense added successfully!");
@@ -93,7 +93,7 @@ export default function GroupsPage() {
         if (!newGroupName.trim()) return;
 
         try {
-            const res = await axios.post('http://127.0.0.1:8000/api/groups/', {
+            const res = await axios.post('http://localhost:8000/api/groups/', {
                 name: newGroupName,
                 user_id: user?.id
             });
@@ -114,7 +114,7 @@ export default function GroupsPage() {
     const confirmDelete = async () => {
         if (!groupToDelete) return;
         try {
-            await axios.delete(`http://127.0.0.1:8000/api/groups/${groupToDelete.id}/`);
+            await axios.delete(`http://localhost:8000/api/groups/${groupToDelete.id}/`);
             setGroups(groups.filter(g => g.id !== groupToDelete.id));
             setShowDeleteModal(false);
             setGroupToDelete(null);
@@ -126,13 +126,13 @@ export default function GroupsPage() {
     const handleAddMember = async () => {
         if (!newMemberEmail.trim()) return;
         try {
-            await axios.post(`http://127.0.0.1:8000/api/groups/${activeGroup.id}/add_member/`, {
+            await axios.post(`http://localhost:8000/api/groups/${activeGroup.id}/add_member/`, {
                 email: newMemberEmail,
                 name: newMemberName
             });
 
             // Fetch updated group details
-            const groupRes = await axios.get(`http://127.0.0.1:8000/api/groups/${activeGroup.id}/`);
+            const groupRes = await axios.get(`http://localhost:8000/api/groups/${activeGroup.id}/`);
             const updatedGroup = groupRes.data;
 
             setActiveGroup(updatedGroup);

@@ -23,7 +23,7 @@ export default function ProfilePage() {
     useEffect(() => {
         const fetchUsage = async () => {
             try {
-                const res = await axios.get(`http://127.0.0.1:8000/api/usage/${user?.id}/`);
+                const res = await axios.get(`http://localhost:8000/api/usage/${user?.id}/`);
                 setUsageData(res.data);
             } catch (error) {
                 console.error("Failed to fetch usage data");
@@ -36,7 +36,7 @@ export default function ProfilePage() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await axios.post(`http://127.0.0.1:8000/api/profile/${user.id}/update/`, profile);
+            const res = await axios.post(`http://localhost:8000/api/profile/${user.id}/update/`, profile);
             updateUser(res.data.user);
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);

@@ -18,14 +18,14 @@ export default function Dashboard() {
             if (!user?.id) return;
             try {
                 // Fetch Balance
-                const balRes = await axios.get(`http://127.0.0.1:8000/api/balance/${user.id}/`);
+                const balRes = await axios.get(`http://localhost:8000/api/balance/${user.id}/`);
                 setBalance({
                     you_owe: balRes.data.you_owe,
                     owed_to_you: balRes.data.owed_to_you
                 });
 
                 // Fetch Usage
-                const useRes = await axios.get(`http://127.0.0.1:8000/api/usage/${user.id}/`);
+                const useRes = await axios.get(`http://localhost:8000/api/usage/${user.id}/`);
                 setUsageData(useRes.data);
             } catch (error) {
                 console.error("Failed to fetch dashboard data");

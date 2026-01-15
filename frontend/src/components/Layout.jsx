@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import Avatar from './Avatar';
@@ -115,7 +115,10 @@ const Header = () => {
                                 Profile Settings
                             </Link>
                             <div
-                                onClick={logout}
+                                onClick={() => {
+                                    logout();
+                                    setDropdownOpen(false);
+                                }}
                                 style={{ padding: '0.75rem 1rem', color: '#f87171', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem', marginTop: '0.2rem', transition: 'background 0.2s' }}
                                 onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'}
                                 onMouseLeave={(e) => e.target.style.background = 'transparent'}
@@ -131,7 +134,20 @@ const Header = () => {
 };
 
 export default function Layout() {
+    const { user, loading } = useAuth();
     const location = useLocation();
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#fff' }}>
+                Loading...
+            </div>
+        );
+    }
+
+    if (!user) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>

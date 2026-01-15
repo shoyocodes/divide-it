@@ -8,16 +8,25 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('divideit_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
-        setLoading(false);
+        const initializeAuth = async () => {
+            try {
+                const storedUser = localStorage.getItem('divideit_user');
+                if (storedUser) {
+                    setUser(JSON.parse(storedUser));
+                }
+            } catch (error) {
+                console.error("Failed to initialize auth:", error);
+                localStorage.removeItem('divideit_user');
+            } finally {
+                setLoading(false);
+            }
+        };
+        initializeAuth();
     }, []);
 
     const login = async (username, password) => {
         try {
-            const res = await axios.post('http://127.0.0.1:8000/api/login/', { username, password });
+            const res = await axios.post('http://localhost:8000/api/login/', { username, password });
             setUser(res.data);
             localStorage.setItem('divideit_user', JSON.stringify(res.data));
             return { success: true };
@@ -28,7 +37,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (userData) => {
         try {
-            await axios.post('http://127.0.0.1:8000/api/register/', userData);
+            await axios.post('http://localhost:8000/api/register/', userData);
             // Auto login after register
             return login(userData.email, userData.password);
         } catch (error) {
