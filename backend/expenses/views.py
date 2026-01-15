@@ -5,6 +5,9 @@ from django.contrib.auth.models import User
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncMonth
 from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
 from .models import Group, Expense, ExpenseSplit
@@ -286,3 +289,46 @@ class MonthlyUsageAPIView(APIView):
             })
             
         return Response(data)
+class PasswordResetRequestAPIView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(email=email)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            
+            # In a real app, we'd send an email. For this demo, we'll return the URL.
+            reset_url = f"http://localhost:5173/reset-password/{uid}/{token}/"
+            
+            return Response({
+                'message': 'Password reset link generated (simulated email)',
+                'reset_url': reset_url
+            })
+        except User.DoesNotExist:
+            # Don't reveal if user exists or not for security, but for demo we can be helpful
+            return Response({'error': 'No user found with this email'}, status=status.HTTP_404_NOT_FOUND)
+
+class PasswordResetConfirmAPIView(APIView):
+    def post(self, request):
+        uidb64 = request.data.get('uid')
+        token = request.data.get('token')
+        new_password = request.data.get('new_password')
+        
+        if not all([uidb64, token, new_password]):
+            return Response({'error': 'Missing fields'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            user.set_password(new_password)
+            user.save()
+            return Response({'message': 'Password has been reset successfully'})
+        else:
+            return Response({'error': 'Invalid or expired reset link'}, status=status.HTTP_400_BAD_REQUEST)

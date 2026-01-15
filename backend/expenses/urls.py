@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     GroupListCreateAPIView, GroupRetrieveDestroyAPIView, ExpenseListCreateAPIView, 
     BalanceAPIView, LoginAPIView, UserProfileAPIView, RegisterAPIView, 
-    SettleUpAPIView, AddMemberToGroupAPIView, UserProfileUpdateAPIView, MonthlyUsageAPIView
+    SettleUpAPIView, AddMemberToGroupAPIView, UserProfileUpdateAPIView, MonthlyUsageAPIView,
+    PasswordResetRequestAPIView, PasswordResetConfirmAPIView
 )
 
 urlpatterns = [
@@ -17,4 +18,6 @@ urlpatterns = [
     path('expenses/', ExpenseListCreateAPIView.as_view(), name='expense-list'),
     path('balance/<int:user_id>/', BalanceAPIView.as_view(), name='balance'),
     path('settle/', SettleUpAPIView.as_view(), name='settle-up'),
+    path('password-reset/', PasswordResetRequestAPIView.as_view(), name='password-reset-request'),
+    path('password-reset-confirm/', PasswordResetConfirmAPIView.as_view(), name='password-reset-confirm'),
 ]

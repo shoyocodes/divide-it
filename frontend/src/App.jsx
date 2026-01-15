@@ -8,6 +8,8 @@ import AboutPage from './pages/AboutPage';
 import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import { AuthProvider } from './context/AuthContext';
 import './index.css';
 
@@ -18,6 +20,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
 
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />

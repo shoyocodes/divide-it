@@ -110,6 +110,9 @@ export default function RegisterPage() {
                     <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
                         Sign Up
                     </button>
+                    <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                        <Link to="/forgot-password" style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textDecoration: 'none' }}>Forgot Password?</Link>
+                    </div>
                 </form>
 
                 <p style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--text-muted)' }}>
