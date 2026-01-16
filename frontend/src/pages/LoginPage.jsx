@@ -1,15 +1,24 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Notification from '../components/Notification';
 
 export default function LoginPage() {
     const navigate = useNavigate();
     const { login } = useAuth();
-    const [error, setError] = useState('');
+    const [notify, setNotify] = useState({ show: false, message: '', type: 'error' });
     const [formData, setFormData] = useState({
         email: '',
         password: ''
     });
+
+    const showNotify = (message, type = 'error') => {
+        setNotify({ show: true, message, type });
+    };
+
+    const closeNotify = () => {
+        setNotify(prev => ({ ...prev, show: false }));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -18,7 +27,7 @@ export default function LoginPage() {
         if (result.success) {
             navigate('/');
         } else {
-            setError(result.error);
+            showNotify(result.error);
         }
     };
 
@@ -30,10 +39,16 @@ export default function LoginPage() {
             justifyContent: 'center',
             padding: '1rem'
         }}>
+            <Notification
+                show={notify.show}
+                message={notify.message}
+                type={notify.type}
+                onClose={closeNotify}
+            />
             <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '2.5rem' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                    <h1 className="logo" style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Divide It</h1>
                     <p style={{ color: 'var(--text-muted)' }}>Welcome back! Please sign in.</p>
-                    {error && <p className="animate-shake" style={{ color: '#ef4444', marginTop: '1rem' }}>{error}</p>}
                 </div>
 
                 <form onSubmit={handleSubmit}>

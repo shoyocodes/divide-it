@@ -1,29 +1,36 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../api/config';
 import { Link } from 'react-router-dom';
+import Notification from '../components/Notification';
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState('');
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
+    const [notify, setNotify] = useState({ show: false, message: '', type: 'error' });
     const [loading, setLoading] = useState(false);
     const [resetUrl, setResetUrl] = useState(''); // For demo purposes
+
+    const showNotify = (message, type = 'error') => {
+        setNotify({ show: true, message, type });
+    };
+
+    const closeNotify = () => {
+        setNotify(prev => ({ ...prev, show: false }));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setMessage('');
-        setError('');
         setResetUrl('');
 
         try {
-            const res = await axios.post('http://localhost:8000/api/password-reset/', { email });
-            setMessage(res.data.message);
+            const res = await axios.post(`${API_BASE_URL}/password-reset/`, { email });
+            showNotify(res.data.message, "success");
             if (res.data.reset_url) {
                 setResetUrl(res.data.reset_url);
             }
         } catch (err) {
-            setError(err.response?.data?.error || 'Something went wrong');
+            showNotify(err.response?.data?.error || 'Something went wrong');
         } finally {
             setLoading(false);
         }
@@ -37,16 +44,22 @@ export default function ForgotPassword() {
             justifyContent: 'center',
             padding: '1rem'
         }}>
+            <Notification
+                show={notify.show}
+                message={notify.message}
+                type={notify.type}
+                onClose={closeNotify}
+            />
             <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '2.5rem' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Forgot Password?</h2>
                     <p style={{ color: 'var(--text-muted)' }}>Enter your email to receive a reset link.</p>
                 </div>
 
-                {message ? (
+                {notify.type === 'success' ? (
                     <div style={{ textAlign: 'center' }}>
                         <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', borderRadius: '8px', marginBottom: '1.5rem' }}>
-                            {message}
+                            {notify.message}
                         </div>
                         {resetUrl && (
                             <div style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
@@ -69,8 +82,6 @@ export default function ForgotPassword() {
                                 onChange={e => setEmail(e.target.value)}
                             />
                         </div>
-
-                        {error && <p style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
 
                         <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem' }} disabled={loading}>
                             {loading ? 'Sending...' : 'Send Reset Link'}

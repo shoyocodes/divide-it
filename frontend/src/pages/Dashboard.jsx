@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
+import { API_BASE_URL } from '../api/config';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -12,21 +13,26 @@ export default function Dashboard() {
     const { user } = useAuth();
     const [balance, setBalance] = useState({ you_owe: 0, owed_to_you: 0 });
     const [usageData, setUsageData] = useState([]);
+    const [breakdown, setBreakdown] = useState([]);
 
     useEffect(() => {
         async function fetchData() {
             if (!user?.id) return;
             try {
                 // Fetch Balance
-                const balRes = await axios.get(`http://localhost:8000/api/balance/${user.id}/`);
+                const balRes = await axios.get(`${API_BASE_URL}/balance/${user.id}/`);
                 setBalance({
                     you_owe: balRes.data.you_owe,
                     owed_to_you: balRes.data.owed_to_you
                 });
 
                 // Fetch Usage
-                const useRes = await axios.get(`http://localhost:8000/api/usage/${user.id}/`);
+                const useRes = await axios.get(`${API_BASE_URL}/usage/${user.id}/`);
                 setUsageData(useRes.data);
+
+                // Fetch Breakdown
+                const breakRes = await axios.get(`${API_BASE_URL}/balance/breakdown/${user.id}/`);
+                setBreakdown(breakRes.data);
             } catch (error) {
                 console.error("Failed to fetch dashboard data");
             }
@@ -137,11 +143,16 @@ export default function Dashboard() {
             <div className="card animate-slide-up delay-3">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                     <h3 style={{ fontSize: '1.25rem', margin: 0 }}>Friends to Settle</h3>
-                    <span style={{ fontSize: '0.9rem', color: 'var(--primary)', cursor: 'pointer' }}>View All</span>
+                    <span
+                        onClick={() => navigate('/groups')}
+                        style={{ fontSize: '0.9rem', color: 'var(--primary)', cursor: 'pointer' }}
+                    >
+                        View All
+                    </span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {[1].map((_, i) => (
+                    {breakdown.length > 0 ? breakdown.map((item, i) => (
                         <div key={i} style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -149,27 +160,42 @@ export default function Dashboard() {
                             padding: '1.25rem',
                             background: 'rgba(255,255,255,0.03)',
                             borderRadius: '16px',
-                            transition: 'background 0.2s'
+                            transition: 'background 0.2s',
+                            border: '1px solid rgba(255,255,255,0.03)'
                         }}
                             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
                             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <Avatar user={{ first_name: 'Alice' }} size="lg" />
+                                <Avatar user={item.friend} size="lg" />
                                 <div>
-                                    <p style={{ margin: 0, fontWeight: 600, fontSize: '1rem' }}>Alice (Demo)</p>
-                                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#f87171' }}>Owes you nothing • You owe ₹500</p>
+                                    <p style={{ margin: 0, fontWeight: 600, fontSize: '1rem' }}>{item.friend.first_name} {item.friend.last_name || ''}</p>
+                                    <p style={{ margin: 0, fontSize: '0.85rem', color: item.net_balance > 0 ? '#34d399' : '#f87171' }}>
+                                        {item.net_balance > 0
+                                            ? `Owes you ₹${item.net_balance.toFixed(2)}`
+                                            : `You owe ₹${Math.abs(item.net_balance).toFixed(2)}`}
+                                    </p>
                                 </div>
                             </div>
                             <button
-                                onClick={() => navigate('/pay', { state: { amount: 500, description: 'Settle with Alice' } })}
-                                className="btn btn-primary"
-                                style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem' }}
+                                onClick={() => navigate('/groups')}
+                                className="btn"
+                                style={{
+                                    padding: '0.6rem 1.25rem',
+                                    fontSize: '0.9rem',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    color: 'var(--text)',
+                                    border: '1px solid var(--border)'
+                                }}
                             >
-                                Settle Up
+                                {item.net_balance < 0 ? 'Settle Up' : 'View Details'}
                             </button>
                         </div>
-                    ))}
+                    )) : (
+                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                            <p>No active debts! You're all settled up. ✨</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

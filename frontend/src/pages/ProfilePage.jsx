@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../api/config';
 import { useAuth } from '../context/AuthContext';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -7,6 +8,7 @@ import {
 } from 'recharts';
 import { User, Mail, Shield, TrendingUp, Calendar } from 'lucide-react';
 import Avatar from '../components/Avatar';
+import Notification from '../components/Notification';
 
 export default function ProfilePage() {
     const { user, updateUser } = useAuth();
@@ -18,12 +20,20 @@ export default function ProfilePage() {
     });
     const [usageData, setUsageData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
+    const [notify, setNotify] = useState({ show: false, message: '', type: 'error' });
+
+    const showNotify = (message, type = 'error') => {
+        setNotify({ show: true, message, type });
+    };
+
+    const closeNotify = () => {
+        setNotify(prev => ({ ...prev, show: false }));
+    };
 
     useEffect(() => {
         const fetchUsage = async () => {
             try {
-                const res = await axios.get(`http://localhost:8000/api/usage/${user?.id}/`);
+                const res = await axios.get(`${API_BASE_URL}/usage/${user?.id}/`);
                 setUsageData(res.data);
             } catch (error) {
                 console.error("Failed to fetch usage data");
@@ -36,12 +46,11 @@ export default function ProfilePage() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await axios.post(`http://localhost:8000/api/profile/${user.id}/update/`, profile);
+            const res = await axios.post(`${API_BASE_URL}/profile/${user.id}/update/`, profile);
             updateUser(res.data.user);
-            setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000);
+            showNotify("Profile updated successfully!", "success");
         } catch (error) {
-            alert("Failed to update profile");
+            showNotify("Failed to update profile");
         } finally {
             setLoading(false);
         }
@@ -49,6 +58,12 @@ export default function ProfilePage() {
 
     return (
         <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <Notification
+                show={notify.show}
+                message={notify.message}
+                type={notify.type}
+                onClose={closeNotify}
+            />
             <h1 style={{ marginBottom: '2rem' }}>Account Settings</h1>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
@@ -65,8 +80,8 @@ export default function ProfilePage() {
 
                     <div style={{ marginBottom: '2rem' }}>
                         <label className="label" style={{ marginBottom: '1rem', display: 'block' }}>Choose Avatar</label>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                            {['', 'avatar1', 'avatar2', 'avatar3'].map((av) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
+                            {['', 'avatar1', 'avatar2', 'avatar3', 'avatar4', 'avatar5', 'avatar6'].map((av) => (
                                 <div
                                     key={av}
                                     onClick={() => setProfile({ ...profile, avatar_url: av })}
@@ -76,7 +91,9 @@ export default function ProfilePage() {
                                         borderRadius: '50%',
                                         border: profile.avatar_url === av ? '2px solid var(--primary)' : '2px solid transparent',
                                         transition: 'all 0.2s',
-                                        background: profile.avatar_url === av ? 'rgba(99, 102, 241, 0.1)' : 'transparent'
+                                        background: profile.avatar_url === av ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                                        display: 'flex',
+                                        justifyContent: 'center'
                                     }}
                                 >
                                     <Avatar user={{ ...user, avatar_url: av }} size="lg" />
@@ -115,11 +132,6 @@ export default function ProfilePage() {
                             <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
                                 {loading ? 'Saving...' : 'Save Changes'}
                             </button>
-                            {success && (
-                                <p style={{ color: 'var(--success)', fontSize: '0.85rem', textAlign: 'center', marginTop: '1rem' }}>
-                                    ✓ Profile updated successfully!
-                                </p>
-                            )}
                         </div>
                     </form>
                 </div>

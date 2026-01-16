@@ -2,8 +2,10 @@ from django.urls import path
 from .views import (
     GroupListCreateAPIView, GroupRetrieveDestroyAPIView, ExpenseListCreateAPIView, 
     BalanceAPIView, LoginAPIView, UserProfileAPIView, RegisterAPIView, 
+    BalanceAPIView, LoginAPIView, UserProfileAPIView, RegisterAPIView, 
     SettleUpAPIView, AddMemberToGroupAPIView, UserProfileUpdateAPIView, MonthlyUsageAPIView,
-    PasswordResetRequestAPIView, PasswordResetConfirmAPIView
+    PasswordResetRequestAPIView, PasswordResetConfirmAPIView, ExpenseRetrieveDestroyAPIView,
+    UserBalanceBreakdownAPIView
 )
 
 urlpatterns = [
@@ -16,7 +18,9 @@ urlpatterns = [
     path('groups/<int:pk>/', GroupRetrieveDestroyAPIView.as_view(), name='group-detail'),
     path('groups/<int:group_id>/add_member/', AddMemberToGroupAPIView.as_view(), name='add-member'),
     path('expenses/', ExpenseListCreateAPIView.as_view(), name='expense-list'),
+    path('expenses/<int:pk>/', ExpenseRetrieveDestroyAPIView.as_view(), name='expense-detail'),
     path('balance/<int:user_id>/', BalanceAPIView.as_view(), name='balance'),
+    path('balance/breakdown/<int:user_id>/', UserBalanceBreakdownAPIView.as_view(), name='balance-breakdown'),
     path('settle/', SettleUpAPIView.as_view(), name='settle-up'),
     path('password-reset/', PasswordResetRequestAPIView.as_view(), name='password-reset-request'),
     path('password-reset-confirm/', PasswordResetConfirmAPIView.as_view(), name='password-reset-confirm'),

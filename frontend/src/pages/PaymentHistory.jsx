@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../api/config';
 
 export default function PaymentHistory() {
     const [orders, setOrders] = useState([]);
@@ -8,7 +9,7 @@ export default function PaymentHistory() {
     useEffect(() => {
         async function fetchOrders() {
             try {
-                const res = await axios.get('http://localhost:8000/api/orders/');
+                const res = await axios.get(`${API_BASE_URL}/orders/`);
                 setOrders(res.data);
             } catch (error) {
                 console.error("Failed to fetch orders", error);

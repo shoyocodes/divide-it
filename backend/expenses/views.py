@@ -13,6 +13,10 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Group, Expense, ExpenseSplit
 from .serializers import GroupSerializer, ExpenseSerializer, UserSerializer
 
+class ExpenseRetrieveDestroyAPIView(generics.RetrieveDestroyAPIView):
+    queryset = Expense.objects.all()
+    serializer_class = ExpenseSerializer
+
 class LoginAPIView(APIView):
     def post(self, request):
         username = request.data.get('username')
@@ -20,15 +24,9 @@ class LoginAPIView(APIView):
         user = authenticate(username=username, password=password)
         
         if user:
-            # Simple token gen (or just return ID for MVP if tokens aren't set up yet, 
-            # but let's try to be proper if possible, or just return user info)
-            return Response({
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name
-            })
+            # Return full user data including avatar_url
+            serializer = UserSerializer(user)
+            return Response(serializer.data)
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
 
 class RegisterAPIView(APIView):
@@ -46,11 +44,11 @@ class RegisterAPIView(APIView):
 
         user = User.objects.create_user(username=username, email=username, password=password, first_name=first_name, last_name=last_name)
         
+        # Return full user data including avatar_url
+        serializer = UserSerializer(user)
         return Response({
             'message': 'User created successfully',
-            'id': user.id,
-            'username': user.username,
-            'email': user.email
+            **serializer.data
         }, status=status.HTTP_201_CREATED)
 
 class UserProfileAPIView(APIView):
@@ -112,9 +110,17 @@ class ExpenseListCreateAPIView(generics.ListCreateAPIView):
 
     def post(self, request, *args, **kwargs):
         description = request.data.get('description')
-        amount = float(request.data.get('amount'))
+        amount_val = request.data.get('amount')
         payer_id = request.data.get('payer')
         group_id = request.data.get('group')
+
+        if not amount_val:
+            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            amount = float(amount_val)
+        except ValueError:
+            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             payer = User.objects.get(id=payer_id)
@@ -332,3 +338,52 @@ class PasswordResetConfirmAPIView(APIView):
             return Response({'message': 'Password has been reset successfully'})
         else:
             return Response({'error': 'Invalid or expired reset link'}, status=status.HTTP_400_BAD_REQUEST)
+
+class UserBalanceBreakdownAPIView(APIView):
+    def get(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=404)
+
+        # Map to store friend_id -> {friend_details, net_balance, you_owe, owed_to_you}
+        breakdown = {}
+
+        # 1. Debts you owe: Splits where you are the debtor
+        your_debts = ExpenseSplit.objects.filter(user=user, is_settled=False).exclude(expense__payer=user)
+        for split in your_debts:
+            friend = split.expense.payer
+            if friend.id not in breakdown:
+                breakdown[friend.id] = {
+                    'friend': UserSerializer(friend).data,
+                    'you_owe': 0.0,
+                    'owed_to_you': 0.0
+                }
+            breakdown[friend.id]['you_owe'] += float(split.amount_owed)
+
+        # 2. Debts owed to you: Splits on expenses YOU paid where others are debtors
+        debts_to_you = ExpenseSplit.objects.filter(expense__payer=user, is_settled=False).exclude(user=user)
+        for split in debts_to_you:
+            debtor = split.user
+            if debtor.id not in breakdown:
+                breakdown[debtor.id] = {
+                    'friend': UserSerializer(debtor).data,
+                    'you_owe': 0.0,
+                    'owed_to_you': 0.0
+                }
+            breakdown[debtor.id]['owed_to_you'] += float(split.amount_owed)
+
+        # Convert to list and calculate net
+        result = []
+        for f_id, data in breakdown.items():
+            net = data['owed_to_you'] - data['you_owe']
+            result.append({
+                **data,
+                'net_balance': net
+            })
+
+        # Sort by absolute balance (most important first)
+        result.sort(key=lambda x: abs(x['net_balance']), reverse=True)
+
+        return Response(result)
+

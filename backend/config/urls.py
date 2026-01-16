@@ -16,9 +16,22 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+
+def api_root(request):
+    return JsonResponse({
+        "message": "Divide It API is running",
+        "endpoints": {
+            "api": "/api/",
+            "admin": "/admin/",
+        },
+        "frontend": "http://localhost:5173/"
+    })
 
 urlpatterns = [
+    path('', api_root, name='root'),
     path('admin/', admin.site.urls),
+    path('api/', api_root, name='api-root'),
     path('api/', include('payments.urls')),
     path('api/', include('expenses.urls')),
 ]

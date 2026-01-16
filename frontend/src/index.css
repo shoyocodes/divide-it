@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
 :root {
   --primary: #6366f1;
   --primary-hover: #4f46e5;
@@ -15,8 +17,6 @@
   --shadow-lg: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.4);
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 body {
   margin: 0;
@@ -267,6 +267,10 @@ body {
   /* Lighter text for better reading */
   margin-left: 0.25rem;
   letter-spacing: 0.02em;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
 }
 
 .btn {

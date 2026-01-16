@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../api/config';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
+import Notification from '../components/Notification';
+import { Trash2 } from 'lucide-react';
 
 export default function GroupsPage() {
     const { user } = useAuth();
@@ -20,6 +23,17 @@ export default function GroupsPage() {
     const [groupToDelete, setGroupToDelete] = useState(null);
     const [newMemberEmail, setNewMemberEmail] = useState('');
     const [newMemberName, setNewMemberName] = useState('');
+    const [notify, setNotify] = useState({ show: false, message: '', type: 'error' });
+    const [showExpenseDeleteModal, setShowExpenseDeleteModal] = useState(false);
+    const [expenseToDelete, setExpenseToDelete] = useState(null);
+
+    const showNotify = (message, type = 'error') => {
+        setNotify({ show: true, message, type });
+    };
+
+    const closeNotify = () => {
+        setNotify(prev => ({ ...prev, show: false }));
+    };
 
     const getDisplayName = (u) => {
         if (!u) return 'Unknown';
@@ -32,7 +46,7 @@ export default function GroupsPage() {
     useEffect(() => {
         async function fetchGroups() {
             try {
-                const res = await axios.get('http://localhost:8000/api/groups/');
+                const res = await axios.get(`${API_BASE_URL}/groups/`);
                 setGroups(res.data);
             } catch (error) {
                 console.error("Failed to fetch groups");
@@ -45,7 +59,7 @@ export default function GroupsPage() {
 
     const fetchExpenses = async (groupId) => {
         try {
-            const res = await axios.get(`http://localhost:8000/api/expenses/?group_id=${groupId}`);
+            const res = await axios.get(`${API_BASE_URL}/expenses/?group_id=${groupId}`);
             setActiveGroupExpenses(res.data);
         } catch (error) {
             console.error("Failed to fetch expenses");
@@ -61,12 +75,12 @@ export default function GroupsPage() {
 
     const handleAddExpense = async () => {
         if (!newExpense.description || !newExpense.amount) {
-            alert("Please enter a description and amount.");
+            showNotify("Please enter a description and amount.");
             return;
         }
 
         if (selectedMembers.length === 0) {
-            alert("Please select at least one person to split with.");
+            showNotify("Please select at least one person to split with.");
             return;
         }
 
@@ -79,13 +93,13 @@ export default function GroupsPage() {
                 participants: selectedMembers
             };
             console.log("Adding expense:", payload);
-            await axios.post('http://localhost:8000/api/expenses/', payload);
+            await axios.post(`${API_BASE_URL}/expenses/`, payload);
             await fetchExpenses(activeGroup.id); // Refresh list
             setNewExpense({ description: '', amount: '' });
-            alert("Expense added successfully!");
+            showNotify("Expense added successfully!", "success");
         } catch (error) {
             console.error(error);
-            alert("Failed to add expense: " + (error.response?.data?.error || error.message));
+            showNotify("Failed to add expense: " + (error.response?.data?.error || error.message));
         }
     };
 
@@ -93,7 +107,7 @@ export default function GroupsPage() {
         if (!newGroupName.trim()) return;
 
         try {
-            const res = await axios.post('http://localhost:8000/api/groups/', {
+            const res = await axios.post(`${API_BASE_URL}/groups/`, {
                 name: newGroupName,
                 user_id: user?.id
             });
@@ -102,7 +116,7 @@ export default function GroupsPage() {
             setNewGroupName('');
         } catch (error) {
             console.error(error);
-            alert("Failed to create group: " + (error.response?.data?.error || error.message));
+            showNotify("Failed to create group: " + (error.response?.data?.error || error.message));
         }
     };
 
@@ -114,25 +128,25 @@ export default function GroupsPage() {
     const confirmDelete = async () => {
         if (!groupToDelete) return;
         try {
-            await axios.delete(`http://localhost:8000/api/groups/${groupToDelete.id}/`);
+            await axios.delete(`${API_BASE_URL}/groups/${groupToDelete.id}/`);
             setGroups(groups.filter(g => g.id !== groupToDelete.id));
             setShowDeleteModal(false);
             setGroupToDelete(null);
         } catch (error) {
-            alert("Failed to delete group");
+            showNotify("Failed to delete group");
         }
     };
 
     const handleAddMember = async () => {
         if (!newMemberEmail.trim()) return;
         try {
-            await axios.post(`http://localhost:8000/api/groups/${activeGroup.id}/add_member/`, {
+            await axios.post(`${API_BASE_URL}/groups/${activeGroup.id}/add_member/`, {
                 email: newMemberEmail,
                 name: newMemberName
             });
 
             // Fetch updated group details
-            const groupRes = await axios.get(`http://localhost:8000/api/groups/${activeGroup.id}/`);
+            const groupRes = await axios.get(`${API_BASE_URL}/groups/${activeGroup.id}/`);
             const updatedGroup = groupRes.data;
 
             setActiveGroup(updatedGroup);
@@ -148,13 +162,69 @@ export default function GroupsPage() {
 
             setNewMemberEmail('');
             setNewMemberName('');
+            showNotify("Member added successfully!", "success");
         } catch (error) {
-            alert(error.response?.data?.error || "Failed to add member");
+            showNotify(error.response?.data?.error || "Failed to add member");
+        }
+    };
+
+    const handleDeleteExpense = async () => {
+        if (!expenseToDelete) return;
+        try {
+            await axios.delete(`${API_BASE_URL}/expenses/${expenseToDelete.id}/`);
+            await fetchExpenses(activeGroup.id);
+            setShowExpenseDeleteModal(false);
+            setExpenseToDelete(null);
+            showNotify("Expense deleted successfully!", "success");
+        } catch (error) {
+            showNotify("Failed to delete expense");
         }
     };
 
     return (
         <div className="animate-fade-in">
+            <Notification
+                show={notify.show}
+                message={notify.message}
+                type={notify.type}
+                onClose={closeNotify}
+            />
+
+            {/* Expense Delete Confirmation Modal */}
+            {showExpenseDeleteModal && expenseToDelete && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+                    zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div className="card animate-pop-in" style={{ width: '400px', maxWidth: '90%', textAlign: 'center' }}>
+                        <div style={{ color: '#ef4444', marginBottom: '1.5rem' }}>
+                            <Trash2 size={48} strokeWidth={1.5} />
+                        </div>
+                        <h2 style={{ marginTop: 0 }}>Delete Expense?</h2>
+                        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                            Are you sure you want to delete <strong>{expenseToDelete.description}</strong>?
+                        </p>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => setShowExpenseDeleteModal(false)}
+                                className="btn"
+                                style={{ background: 'rgba(255,255,255,0.05)', flex: 1, border: '1px solid var(--border)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteExpense}
+                                className="btn"
+                                style={{ background: '#ef4444', color: 'white', flex: 1 }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h1>My Groups</h1>
                 <button onClick={() => setShowModal(true)} className="btn btn-primary">+ Create Group</button>
@@ -311,26 +381,52 @@ export default function GroupsPage() {
                                 {activeGroupExpenses.length === 0 ? (
                                     <p style={{ color: 'var(--text-muted)' }}>No expenses yet.</p>
                                 ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                         {activeGroupExpenses.map(exp => (
-                                            <div key={exp.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '12px' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                                    <span style={{ fontWeight: 600 }}>{exp.description}</span>
-                                                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>₹{exp.amount}</span>
+                                            <div key={exp.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '1rem' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                        <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{exp.description}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                        <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: '1.1rem' }}>₹{exp.amount}</span>
+                                                        <button
+                                                            onClick={() => {
+                                                                setExpenseToDelete(exp);
+                                                                setShowExpenseDeleteModal(true);
+                                                            }}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                color: 'rgba(239, 68, 68, 0.5)',
+                                                                cursor: 'pointer',
+                                                                padding: '4px',
+                                                                borderRadius: '4px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(239, 68, 68, 0.5)'}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                                                         <Avatar user={exp.payer_details} size="xs" style={{ width: '20px', height: '20px', fontSize: '0.6rem' }} />
                                                         <span>Paid by <strong>{exp.payer_name}</strong></span>
                                                     </div>
-                                                    <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                                                         {exp.splits.map(split => (
-                                                            <div key={split.user.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                            <div key={split.user.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '1rem' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                                     <Avatar user={split.user} size="xs" style={{ width: '18px', height: '18px', fontSize: '0.55rem' }} />
-                                                                    <span>{getDisplayName(split.user)} owes</span>
+                                                                    <span style={{ fontSize: '0.9rem' }}>{getDisplayName(split.user)} owes</span>
                                                                 </div>
-                                                                <span>₹{split.amount_owed}</span>
+                                                                <span style={{ fontWeight: 600, paddingRight: '0.5rem' }}>₹{split.amount_owed}</span>
                                                             </div>
                                                         ))}
                                                     </div>
