@@ -1,0 +1,2 @@
+gunicorn config.wsgi:application
+
