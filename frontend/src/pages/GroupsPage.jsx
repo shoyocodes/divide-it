@@ -74,6 +74,7 @@ export default function GroupsPage() {
     };
 
     const handleAddExpense = async () => {
+        // existing logic unchanged
         if (!newExpense.description || !newExpense.amount) {
             showNotify("Please enter a description and amount.");
             return;
@@ -427,6 +428,31 @@ export default function GroupsPage() {
                                                                     <span style={{ fontSize: '0.9rem' }}>{getDisplayName(split.user)} owes</span>
                                                                 </div>
                                                                 <span style={{ fontWeight: 600, paddingRight: '0.5rem' }}>₹{split.amount_owed}</span>
+                                                                {split.is_settled ? (
+                                                                    <span style={{ color: 'var(--success)', fontWeight: 500 }}>
+                                                                        {exp.payer === user?.id ? 'Paid me' : 'Settled'}
+                                                                    </span>
+                                                                ) : (
+                                                                    split.user.id === user?.id ? (
+                                                                        <button
+                                                                            className="btn"
+                                                                            style={{ background: 'var(--primary)', color: 'white', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                                                                            onClick={async () => {
+                                                                                try {
+                                                                                    await axios.post(`${API_BASE_URL}/splits/${split.id}/settle/`);
+                                                                                    await fetchExpenses(activeGroup.id);
+                                                                                } catch (err) {
+                                                                                    console.error(err);
+                                                                                    showNotify('Failed to settle split');
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            Settle
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Pending</span>
+                                                                    )
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>

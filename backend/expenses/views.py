@@ -1,8 +1,9 @@
 from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth.models import User
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
@@ -219,6 +220,26 @@ class SettleUpAPIView(APIView):
             'amount_settled': total
         })
 
+
+class MarkSplitSettledAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, split_id):
+        """Mark a single ExpenseSplit as settled.
+        Only the user who owes (split.user) can settle their own split.
+        """
+        try:
+            split = ExpenseSplit.objects.get(id=split_id)
+        except ExpenseSplit.DoesNotExist:
+            return Response({'error': 'Split not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Ensure the requesting user is the debtor
+        if split.user != request.user:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        split.is_settled = True
+        split.save()
+        return Response({'message': 'Split marked as settled', 'split_id': split.id})
+
 class AddMemberToGroupAPIView(APIView):
     def post(self, request, group_id):
         email = request.data.get('email')
@@ -387,3 +408,20 @@ class UserBalanceBreakdownAPIView(APIView):
 
         return Response(result)
 
+
+class HistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        user = request.user
+        # Get expenses where user is payer OR participant
+        expenses = Expense.objects.filter(
+            Q(payer=user) | Q(splits__user=user)
+        ).distinct()
+
+        # Ordering
+        ordering = request.query_params.get('ordering', '-date')
+        if ordering in ['date', '-date', 'amount', '-amount']:
+            expenses = expenses.order_by(ordering)
+
+        serializer = ExpenseSerializer(expenses, many=True)
+        return Response(serializer.data)

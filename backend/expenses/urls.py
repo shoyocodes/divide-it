@@ -1,11 +1,10 @@
 from django.urls import path
 from .views import (
-    GroupListCreateAPIView, GroupRetrieveDestroyAPIView, ExpenseListCreateAPIView, 
-    BalanceAPIView, LoginAPIView, UserProfileAPIView, RegisterAPIView, 
-    BalanceAPIView, LoginAPIView, UserProfileAPIView, RegisterAPIView, 
-    SettleUpAPIView, AddMemberToGroupAPIView, UserProfileUpdateAPIView, MonthlyUsageAPIView,
+    GroupListCreateAPIView, GroupRetrieveDestroyAPIView, ExpenseListCreateAPIView,
+    BalanceAPIView, LoginAPIView, UserProfileAPIView, RegisterAPIView,
+    SettleUpAPIView, MarkSplitSettledAPIView, AddMemberToGroupAPIView, UserProfileUpdateAPIView, MonthlyUsageAPIView,
     PasswordResetRequestAPIView, PasswordResetConfirmAPIView, ExpenseRetrieveDestroyAPIView,
-    UserBalanceBreakdownAPIView
+    UserBalanceBreakdownAPIView, HistoryAPIView
 )
 
 urlpatterns = [
@@ -22,6 +21,8 @@ urlpatterns = [
     path('balance/<int:user_id>/', BalanceAPIView.as_view(), name='balance'),
     path('balance/breakdown/<int:user_id>/', UserBalanceBreakdownAPIView.as_view(), name='balance-breakdown'),
     path('settle/', SettleUpAPIView.as_view(), name='settle-up'),
+    path('splits/<int:split_id>/settle/', MarkSplitSettledAPIView.as_view(), name='split-settle'),
+    path('history/', HistoryAPIView.as_view(), name='history'),
     path('password-reset/', PasswordResetRequestAPIView.as_view(), name='password-reset-request'),
     path('password-reset-confirm/', PasswordResetConfirmAPIView.as_view(), name='password-reset-confirm'),
 ]
