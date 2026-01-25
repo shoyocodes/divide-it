@@ -22,7 +22,7 @@ urlpatterns = [
     path('balance/breakdown/<int:user_id>/', UserBalanceBreakdownAPIView.as_view(), name='balance-breakdown'),
     path('settle/', SettleUpAPIView.as_view(), name='settle-up'),
     path('splits/<int:split_id>/settle/', MarkSplitSettledAPIView.as_view(), name='split-settle'),
-    path('history/', HistoryAPIView.as_view(), name='history'),
+    path('history/<int:user_id>/', HistoryAPIView.as_view(), name='history'),
     path('password-reset/', PasswordResetRequestAPIView.as_view(), name='password-reset-request'),
     path('password-reset-confirm/', PasswordResetConfirmAPIView.as_view(), name='password-reset-confirm'),
 ]

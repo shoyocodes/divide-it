@@ -33,10 +33,14 @@ class ExpenseSerializer(serializers.ModelSerializer):
     payer_name = serializers.SerializerMethodField()
     payer_details = UserSerializer(source='payer', read_only=True)
     splits = ExpenseSplitSerializer(many=True, read_only=True)
+    group_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Expense
-        fields = ['id', 'description', 'amount', 'payer', 'payer_name', 'payer_details', 'group', 'date', 'splits']
+        fields = ['id', 'description', 'amount', 'payer', 'payer_name', 'payer_details', 'group', 'group_name', 'date', 'splits']
+
+    def get_group_name(self, obj):
+        return obj.group.name
 
     def get_payer_name(self, obj):
         user = obj.payer

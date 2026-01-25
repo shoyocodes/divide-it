@@ -11,8 +11,9 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
 from .models import Group, Expense, ExpenseSplit
-from .serializers import GroupSerializer, ExpenseSerializer, UserSerializer
+from .serializers import GroupSerializer, ExpenseSerializer, UserSerializer, ExpenseSplitSerializer
 
 class ExpenseRetrieveDestroyAPIView(generics.RetrieveDestroyAPIView):
     queryset = Expense.objects.all()
@@ -191,33 +192,42 @@ class BalanceAPIView(APIView):
 
 class SettleUpAPIView(APIView):
     def post(self, request):
-        # Settle all debts with a specific user
+        # Settle all debts between two users
         friend_id = request.data.get('friend_id')
-        user_id = request.data.get('user_id') # In real app, get from request.user
+        user_id = request.data.get('user_id')
 
         try:
-            payer = User.objects.get(id=user_id) # The one paying back
-            receiver = User.objects.get(id=friend_id) # The one being paid back
+            user_a = User.objects.get(id=user_id)
+            user_b = User.objects.get(id=friend_id)
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Find all splits where I owe the receiver
-        # My splits (user=me), Expense payer = receiver, Settled = False
-        debts = ExpenseSplit.objects.filter(
-            user=payer, 
-            expense__payer=receiver, 
+        # Direction 1: A owes B
+        debts_a_owes_b = ExpenseSplit.objects.filter(
+            user=user_a, 
+            expense__payer=user_b, 
             is_settled=False
         )
         
-        count = debts.count()
-        total = sum(d.amount_owed for d in debts)
+        # Direction 2: B owes A
+        debts_b_owes_a = ExpenseSplit.objects.filter(
+            user=user_b, 
+            expense__payer=user_a, 
+            is_settled=False
+        )
         
-        # Mark all as settled
-        debts.update(is_settled=True)
+        count_a = debts_a_owes_b.count()
+        count_b = debts_b_owes_a.count()
+        total_a = sum(d.amount_owed for d in debts_a_owes_b)
+        total_b = sum(d.amount_owed for d in debts_b_owes_a)
+        
+        now = timezone.now()
+        debts_a_owes_b.update(is_settled=True, settled_at=now)
+        debts_b_owes_a.update(is_settled=True, settled_at=now)
 
         return Response({
-            'message': f'Settled {count} debts totaling {total}',
-            'amount_settled': total
+            'message': f'Settled {count_a + count_b} debts',
+            'amount_settled': float(total_a + total_b)
         })
 
 
@@ -237,6 +247,7 @@ class MarkSplitSettledAPIView(APIView):
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
 
         split.is_settled = True
+        split.settled_at = timezone.now()
         split.save()
         return Response({'message': 'Split marked as settled', 'split_id': split.id})
 
@@ -410,18 +421,78 @@ class UserBalanceBreakdownAPIView(APIView):
 
 
 class HistoryAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-    def get(self, request):
-        user = request.user
-        # Get expenses where user is payer OR participant
+    def get(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=404)
+        
+        # 1. Get Expenses where user is payer or receiver
         expenses = Expense.objects.filter(
             Q(payer=user) | Q(splits__user=user)
         ).distinct()
+        
+        # 2. Get Settlements where user is payer or receiver
+        # Settlements where I owe someone (user=me) OR I am being paid (expense__payer=me)
+        settled_splits = ExpenseSplit.objects.filter(
+            is_settled=True,
+            settled_at__isnull=False
+        ).filter(
+            Q(user=user) | Q(expense__payer=user)
+        ).distinct()
 
-        # Ordering
+        events = []
+        
+        # Add Expense Creation Events
+        for exp in expenses:
+            events.append({
+                'id': f"exp_{exp.id}",
+                'type': 'expense',
+                'description': exp.description,
+                'amount': float(exp.amount),
+                'date': exp.date,
+                'payer': exp.payer.id,
+                'payer_name': f"{exp.payer.first_name} {exp.payer.last_name}".strip() or exp.payer.username,
+                'group_name': exp.group.name,
+                'splits': ExpenseSplitSerializer(exp.splits.all(), many=True).data
+            })
+            
+        # Add Settlement (Payment) Events
+        for split in settled_splits:
+            # Skip splits where payer is the debtor (self-payment)
+            if split.user == split.expense.payer:
+                continue
+
+            is_receiving = split.expense.payer == user
+            
+            if is_receiving:
+                description = f"Received from {split.user.username}"
+            else:
+                description = f"Paid to {split.expense.payer.username}"
+
+            events.append({
+                'id': f"settle_{split.id}",
+                'type': 'payment',
+                'description': f"{description} ({split.expense.description})",
+                'amount': float(split.amount_owed),
+                'date': split.settled_at,
+                'from_user': split.user.username,
+                'to_user': split.expense.payer.username,
+                'is_receiving': is_receiving,
+                'group_name': split.expense.group.name
+            })
+
+        # Ordering logic
         ordering = request.query_params.get('ordering', '-date')
-        if ordering in ['date', '-date', 'amount', '-amount']:
-            expenses = expenses.order_by(ordering)
+        
+        reverse = ordering.startswith('-')
+        sort_key = ordering.lstrip('-')
+        
+        if sort_key == 'date':
+            events.sort(key=lambda x: x['date'], reverse=reverse)
+        elif sort_key == 'amount':
+            events.sort(key=lambda x: x['amount'], reverse=reverse)
+        else:
+            events.sort(key=lambda x: x['date'], reverse=True) # Default newest
 
-        serializer = ExpenseSerializer(expenses, many=True)
-        return Response(serializer.data)
+        return Response(events)
